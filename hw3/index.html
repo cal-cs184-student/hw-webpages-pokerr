@@ -1,106 +1,559 @@
 <html>
-	<head>
-		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-		<style>
-			h1 {
-				text-align: center;
-			}
+<head>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+	<style>
+		h1 {
+			text-align: center;
+		}
 
-			.container {
-				margin: 0 auto;
-				padding: 60px 20%;
-			}
 
-			figure {
-				text-align: center;
-			}
+		.container {
+			margin: 0 auto;
+			padding: 60px 20%;
+		}
 
-			img {
-				display: inline-block;
-			}
 
-			body {
-				font-family: 'Inter', sans-serif;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-		<h1>CS184/284A Spring 2025 Homework 3 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+		figure {
+			text-align: center;
+		}
 
-		<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
-		
-		<figure>
-			<img src="cornell.png" alt="Cornell Boxes with Bunnies" style="width:70%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
+		img {
+			display: inline-block;
+		}
 
-		<!--
-		We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
-		-->
 
-		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+		body {
+			font-family: 'Inter', sans-serif;
+		}
+	</style>
+</head>
+<body>
+<div class="container">
+	<h1>CS184/284A Spring 2025 Homework 3 Write-Up</h1>
+	<div style="text-align: center;">Names: Carolyn Liu, Lance Mathias</div>
 
-		<h2>Part 1: Ray Generation and Scene Intersection</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
-			<table style="width: 100%; text-align: center; border-collapse: collapse;">
-			  <tr>
+	<br>
+
+
+	Link to webpage: <a href="https://github.com/cal-cs184-student/hw-webpages-pokerr">github.com/cal-cs184-student/hw-webpages-pokerr</a>
+
+
+	<br>
+
+
+	Link to GitHub repository: <a href="https://github.com/cal-cs184-student/sp25-hw3-beanz">github.com/cal-cs184-student/sp25-hw3-beanz</a>
+
+
+
+
+	<!--
+    We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
+    -->
+
+
+	<h2>Overview</h2>
+	<p>
+		In this homework, we implement different techniques to help render pictures more realistically.
+		First, we generate rays and create intersection tests to render the image.
+		However, this is quite slow since we need to check every object.
+		Therefore, we construct the BVH tree structure to improve our implementation by only checking certain primitives that may have an intersection.
+		After, we create light on our images using direct and indirect light from different sampling techniques to make our image more realistic.
+		We played with different bounces of light to brighten / soften the scene and with different samples (uniform hemisphere sampling and lighting sampling) to see how the output images change in quality.
+		To make our raytracing implementation more efficient, we include adaptive sampling which stops pixels with low sampling rates from sampling after convergence.
+		Overall, it was very fascinating to see how images change through different bounces of light and how realistic images can be rendered with Monte Carlo sampling!
+	</p>
+
+
+	<h2>Part 1: Ray Generation and Scene Intersection</h2>
+	<p>
+		To generate a ray, we first take the coordinates in image space and transform it to camera space.
+		We did this by first scaling the coordinate by 2, then translating the coordinate by (-1, -1), and finally scaling it again by the tan(0.5 * field of view angle).
+		Next, we convert the coordinate back to world space by multiplying it with the c2w matrix and normalize.
+		This gives us the direction of the ray. Then, we generate the ray by using the camera position and direction, and we also initialize min_t and max_t with nClip and fClip, respectively.
+	</p>
+
+
+	<p>
+		For raytracing, we first initialize a vector to keep track of the radiance of the input pixel.
+		Then, we repeat the following ns_aa times:
+	<ul>
+		<li> get a random sample using our gridSampler</li>
+		<li> generate an array at the sampled position</li>
+		<li> find the radiance of that ray and add it to the vector we created in the beginning</li>
+	</ul>
+	After all the samples, we take the average and update the sampleBuffer with the average radiance and the input pixel coordinate.
+	</p>
+
+
+	<p>
+		For our triangle intersection algorithm, we first calculate the time by following the equation in the lecture slides.
+		Then, we check to make sure the time is greater than 0 and within r.min_t and r.max_t.
+		Additionally, the barycentric coordinates also need to be between 0 and 1.
+		If all of these are true, we update r.max_t and the intersection data.
+		To calculate the point of intersection, we use the barycentric coordinates and vertex normals.
+	</p>
+
+
+	<p>
+		For our sphere intersection algorithm, we also follow closely with the lecture slides.
+		We first test to see if an intersection exists by solving for the quadratic equation.
+		If the discriminant is less than 0, than no intersection occurs, but if it is greater than 0, we compute the two intersection times.
+		We keep track of the earliest time within our range and assign this value to r.max_t if it exists.
+		Finally, we update the intersection data accordingly and compute the normalized vector from the center of the sphere to the intersection point for our surface normal.
+	</p>
+
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="images/task1_empty.png" width="300px"/>
+					<figcaption>empty</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="images/task1_spheres.png" width="300px"/>
+					<figcaption>spheres</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="cornell.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="images/task1_coil.png" width="300px"/>
+					<figcaption>coil</figcaption>
 				</td>
-			  </tr>
-			</table>
-		</div>
-		
-		<h2>Part 2: Bounding Volume Hierarchy</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			</tr>
+		</table>
+	</div>
 
-		<h2>Part 3: Direct Illumination</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<h2>Part 2: Bounding Volume Hierarchy</h2>
+	<p>
+		Before constructing our BVH, we create a bounding box that contains all the primitives by looping through the primitives iterator and expanding our box every time.
+		Then, we create our BVHNode that contains this bounding box.
+		If the number of primitives in this bounding box is less than or equal to the max_leaf_size, we can return the node.
+		If not, we find the longest axis of the bounding by checking the extent of each axis.
+		Then, we split along the centroid of this axis.
+		If the centroid of a primitive is less than the centroid of the axis, it belongs to the left group.
+		Similarly, if the centroid is greater than the centroid of the axis, it belongs to the right group.
+		We partition the primitives which returns an iterator that marks the boundary between the left half and the right half.
+		If one side is empty, we can return the node.
+		Else, we use this new iterator to represent the end of the left node and the start of the right node.
+		Finally, we recursively call on both sides to construct the left and right subtrees of the BVH.
+	</p>
 
-		<h2>Part 4: Global Illumination</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-		<h2>Part 5: Adaptive Sampling</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task2_dragon.png" width="300px"/>
+					<figcaption>dragon</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task2_maxplanck.png" width="300px"/>
+					<figcaption>maxplanck</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task2_lucy.png" width="300px"/>
+					<figcaption>lucy</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
 
-		<h2>(Optional) Part 6: Extra Credit Opportunities</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-		
-		<h2>Additional Notes (please remove)</h2>
+
+	<p>
+		To compare the rendering times, we rendered maxplanck, the bunny, and the dragon with no BVH acceleration and with BVH acceleration.
+		Maxplanck spent 152 seconds to render without BVH and 0.13 seconds to render with.
+		The bunny spent 98 seconds to render without BVH and 24 seconds to render with.
+		The dragon spent 570 seconds to render without BVH and 59 seconds to render with.
+		From these times, BVH acceleration significantly improves the rendering speed with about a four to ten times speed-up!
+	</p>
+
+
+	<h2>Part 3: Direct Illumination</h2>
+	<p>
+		For uniform hemisphere sampling, we do the following num_samples times:
+	<ul>
+		<li> We first get a sample with our hemisphereSampler in object space and use this vector to also find its vector in world space by multiplying it with o2w.</li>
+		<li> Then, we find our ray using the hit point and the world space vector.</li>
+		<li> Next, we check if there is an intersection with our constructed ray, which stores the intersection data if there does exist an intersection.</li>
+		<li> To estimate the lighting, we follow the formula from lecture using the BSDF of the intersection from the light and the intersection of the ray.
+			We also find the cos(theta) by computing the dot product between the normal vector pointing up at the sample and the probability which is 1/2pi since we are uniformly sampling the hemisphere.
+		</li>
+	</ul>
+	After taking all the samples, we divide the light reflection value by the total number of samples to get the average.
+	</p>
+
+
+	<p>
+		For importance sampling, we first keep track of the total number of samples. Then, we follow the following steps for each light source in our scene:
+	<ul>
+		<li> We first check if the light is a point light source. If it is, then we only need to sample once. Else, we sample ns_area_light times and add it to the total number of samples.</li>
+		<li> Now, we iterate through the samples and follow these steps:</li>
 		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
+			<li> We sample the light which returns the emitted radiance and stores the relevant information between the hit point and the light source.</li>
+			<li> Then, we check if the light is behind the surface at the hit point by taking the dot product between the normal vector pointing up and the sampled vector in object space.
+				If it is less than or equal to 0, we continue to the next sample.
 			</li>
+			<li> If not, we create a shadow ray from the hit point in the direction of the sampled vector. We also assign min_t and max_t accordingly. If there is an intersection with this shadow ray, we continue to the next sample.</li>
+			<li> Finally, we use the same reflectance equation from the previous part to find the reflected light.</li>
 		</ul>
-		</div>
-	</body>
+	</ul>
+	After all the iterations, we average the light reflection value by the total number of samples.
+	</p>
+
+
+	<p>
+		Hemisphere Sampling:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_hs.png" width="400px"/>
+					<figcaption>bunny</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task3_spheres_lambertian_hs.png" width="400px"/>
+					<figcaption>spheres</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		Importance Sampling:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_is.png" width="400px"/>
+					<figcaption>bunny</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task3_spheres_lambertian_is.png" width="400px"/>
+					<figcaption>spheres</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		Comparing light rays:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_1.png" width="400px"/>
+					<figcaption>1 light rays</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_4.png" width="400px"/>
+					<figcaption>4 light rays</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_16.png" width="400px"/>
+					<figcaption>16 light rays</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task3_bunny_64.png" width="400px"/>
+					<figcaption>64 light rays</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		Looking at the images with different light rays, it is noticeable that the images with less light rays are more noisy than the images with more light rays.
+		A larger sample size results in less variation because it results in a more accurate representation of the true value with more samples.
+	</p>
+
+
+	<p>
+		Looking at the differences between uniform hemisphere sampling and lighting sampling, the images that use hemisphere sampling are more grainy compared to the images that use lighting sampling.
+		Lighting sampling is able to produce a smoother image because the samples are taken from the light sources themselves and each sample use rays that contribute more to the scene.
+	</p>
+
+
+
+
+	<h2>Part 4: Global Illumination</h2>
+	<p>
+		In our indirect lighting implementation, we start by finding the radiance of one bounce.
+		Then, we check if this is our last bounce. If it is, we are done and can just return the radiance.
+		Else, we sample the direction of the incoming bounce using our BSDF.
+		After, we can construct our ray using the hit point and the world space of the sampled direction.
+		We also set mint_t to EPS_F and the depth to be r.depth - 1.
+		Next, we need to check if our sample ray has an intersection.
+		If it does not, we return the radiance if we are accumulating bounces and a 0 vector if we are not.
+		However, if it does, we continue to find the radiance of the next bounce.
+		Since we want at least one indirect bounce, we check if it is currently the first call and recursively call the at_least_one_bounce_radiance function with the new ray to get the radiance.
+		Then, we compute the light radiance following the same reflectance formula and return it.
+		If it is not the first indirect bounce, we use russian roulette to determine when to stop.
+		We define the probability to stop to be 0.35 and if the coin flip returns true, we return the radiance and stop recursing.
+		Else, we recurse by finding the radiance of the same new ray and compute the sample radiance (and dividing by 1 - 0.35 for the probability of continuing).
+		If we want to accumulate the bounces, we add this sample radiance to our final radiance. Else, we assign our final radiance to this sample radiance.
+	</p>
+
+
+	<p>
+		Illumination using 1024 samples per pixel:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_wall-e_global.png" width="300px"/>
+					<figcaption>wall-e (global)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_global.png" width="300px"/>
+					<figcaption>spheres (global)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_dragon_global.png" width="300px"/>
+					<figcaption>dragon (global)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_direct.png" width="400px"/>
+					<figcaption>spheres (direct only)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_indirect.png" width="400px"/>
+					<figcaption>spheres (indirect only)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		isAccumBounces = False:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_0_false.png" width="300px"/>
+					<figcaption>0 bounces</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_1_false.png" width="300px"/>
+					<figcaption>1 bounce</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_2_false.png" width="300px"/>
+					<figcaption>2 bounces</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_3_false.png" width="300px"/>
+					<figcaption>3 bounces</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_4_false.png" width="300px"/>
+					<figcaption>4 bounce</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_5_false.png" width="300px"/>
+					<figcaption>5 bounces</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		isAccumBounces = True:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_0_true.png" width="300px"/>
+					<figcaption>0 bounces</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_1_true.png" width="300px"/>
+					<figcaption>1 bounce</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_2_true.png" width="300px"/>
+					<figcaption>2 bounces</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_3_true.png" width="300px"/>
+					<figcaption>3 bounces</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_4_true.png" width="300px"/>
+					<figcaption>4 bounce</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_5_true.png" width="300px"/>
+					<figcaption>5 bounces</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		The 2nd bounce of light captures all the indirect illumination where light reflects off one surface before reaching another.
+		This creates a softer effect by brightening areas that were dark during direct illumination and creating a more smooth transition between the shadows and the lighted areas.
+		The 3rd bounce further refines this effect by introducing more subtlety when areas brighten a bit more from nearby objects due to multiple light bounces.
+		The quality of rendered images is better than rasterization because it is able to produce softer shadows from indirect illumination.
+	</p>
+	<p>
+		From the accumulated and unaccumulated bounces, you can see how each bounce effects the overall softness of the image after the first bounce.
+	</p>
+
+
+	<p>
+		Russian Roulette:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_0.png" width="300px"/>
+					<figcaption>0 bounces of light</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_1.png" width="300px"/>
+					<figcaption>1 bounce of light</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_2.png" width="300px"/>
+					<figcaption>2 bounces of light</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_3.png" width="300px"/>
+					<figcaption>3 bounces of light</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_4.png" width="300px"/>
+					<figcaption>4 bounce of light</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_bunny_rr_100.png" width="300px"/>
+					<figcaption>100 bounces of light</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<p>
+		Comparing Sample per Pixel Rates:
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_1.png" width="300px"/>
+					<figcaption>1 sample per pixel</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_2.png" width="300px"/>
+					<figcaption>2 samples per pixel</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_4.png" width="300px"/>
+					<figcaption>4 samples per pixel</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_8.png" width="300px"/>
+					<figcaption>8 sample per pixel</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_16.png" width="300px"/>
+					<figcaption>16 samples per pixel</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_64.png" width="300px"/>
+					<figcaption>64 samples per pixel</figcaption>
+				</td>
+			</tr>
+		</table>
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="images/task4_spheres_1024.png" width="300px"/>
+					<figcaption>1024 sample per pixel</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	</p>
+
+
+	<h2>Part 5: Adaptive Sampling</h2>
+	<p>
+		Adaptive sampling allows for pixels that can converge with low sampling rates to stop sampling when a convergence criteria is met.
+		This results in more efficiency by focusing in areas that require more samples and reduce rendering time by taking less samples in areas that allow it.
+		In my implementation, we modify our raytracing algorithm by checking if the pixel has converged.
+		To begin, we create two variables that sum over every sample's illuminance and squared illuminance, which will be helpful when computing the mean and variance.
+		For every samplesPerBatch sample, we follow the formula in the spec to find the mean, variance, and I value.
+		If the I value is less than or equal to the maxTolerance * mean, we assign num_samples to the current iteration and can stop sampling.
+		Else, we continue sampling and update the two variables with our new sample.
+		The rest is exactly the same as our previous raytracing implementation!
+	</p>
+
+
+	<p>
+		Sampling Rates:
+	<table style="width: 100%; text-align: center; border-collapse: collapse;">
+		<tr>
+			<td style="text-align: center;">
+				<img src="images/task5_spheres.png" width="400px"/>
+				<figcaption>spheres</figcaption>
+			</td>
+			<td style="text-align: center;">
+				<img src="images/task5_spheres_rate.png" width="400px"/>
+				<figcaption>spheres rate</figcaption>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align: center;">
+				<img src="images/task5_bunny.png" width="400px"/>
+				<figcaption>bunny</figcaption>
+			</td>
+			<td style="text-align: center;">
+				<img src="images/task5_bunny_rate.png" width="400px"/>
+				<figcaption>bunny rate</figcaption>
+			</td>
+		</tr>
+	</table>
+	</p>
+
+
+<!--	<h2>(Optional) Part 6: Extra Credit Opportunities</h2>-->
+<!--	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.-->
+	
+</div>
+</body>
 </html>
