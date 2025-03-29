@@ -164,8 +164,8 @@
 	<p>
 		To compare the rendering times, we rendered maxplanck, the bunny, and the dragon with no BVH acceleration and with BVH acceleration.
 		Maxplanck spent 152 seconds to render without BVH and 0.13 seconds to render with.
-		The bunny spent 98 seconds to render without BVH and 24 seconds to render with.
-		The dragon spent 570 seconds to render without BVH and 59 seconds to render with.
+		The bunny spent 98 seconds to render without BVH and 10 seconds to render with.
+		The dragon spent 570 seconds to render without BVH and 24 seconds to render with.
 		From these times, BVH acceleration significantly improves the rendering speed with about a four to ten times speed-up!
 	</p>
 
@@ -551,8 +551,32 @@
 	</p>
 
 
-<!--	<h2>(Optional) Part 6: Extra Credit Opportunities</h2>-->
-<!--	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.-->
+	<h2>(Optional) Part 6: Extra Credit Opportunities</h2>
+	<p>
+		We implemented the surface area heuristic to speed up the rendering time.
+		Instead of splitting along the center of the longest axis, we created 12 buckets and calculated the cost at each of the 11 splits to find the best split for our left and right subtree.
+		To begin, we initialize the best cost to be infinity create variables to keep track of the best axis and the best bucket to split on.
+		Then, we iterate through the three axes and complete the following steps:
+	<ul>
+		<li> We initialize a vector of 12 buckets and a vector integers to keep track of the number of primitives in the buckets.</li>
+		<li> Then we iterate through all the primitives and find which bucket they lie in. We expand the bounding box of that bucket to include the new primitive and increase the primitive count of that bucket by 1.</li>
+		<li> Next, we need to find all possible combinations of the left and right box.
+			Therefore, we create two vectors that represent the left and right boxes.
+			We iterate through the number of buckets and expand the previous left box with the bounding box of the current bucket.
+			Similarly, we do the same thing to find the right box but start from the last bucket instead.
+		</li>
+		<li> Now, we can calculate the cost of each pair but finding the number of primitives in each box and the surface area of each box.
+			We calculate the cost by multiplying the surface area and counts of each side and summing the two.
+			If the cost is better than the current best cost, we assign the initial variables accordingly.
+		</li>
+	</ul>
+	After iterating through all the axes and finding the best split, we partition all the primitives according to this split and return this new iterator.
+	</p>
+	<p>
+		Comparing the rendering times with the 3 images from part 2, maxplanck took 0.03 seconds instead of 0.13, the bunny took 0.04 seconds instead of 10, and the dragon took 0.03 seconds instead of 24.
+		The surface area heuristic will perform better when the primitives are not clustered together. Splitting by the midpoint still allows for many primitives to be on one side and result in a high rendering time.
+		Since the surface area heuristic computes different splits and considers the bounds of the primitives instead of just the positions, it yields a much faster rendering time.
+	</p>
 
 </div>
 </body>
