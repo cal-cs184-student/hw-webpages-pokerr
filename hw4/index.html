@@ -1,109 +1,573 @@
 <html>
-	<head>
-		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-		<style>
-			h1 {
-				text-align: center;
-			}
+<head>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+	<style>
+		h1 {
+			text-align: center;
+		}
 
-			.container {
-				margin: 0 auto;
-				padding: 60px 20%;
-			}
+		.container {
+			margin: 0 auto;
+			padding: 60px 20%;
+		}
 
-			figure {
-				text-align: center;
-			}
+		figure {
+			text-align: center;
+		}
 
-			img {
-				display: inline-block;
-			}
+		img {
+			display: inline-block;
+		}
 
-			body {
-				font-family: 'Inter', sans-serif;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-		<h1>CS184/284A Spring 2025 Homework 4 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+		body {
+			font-family: 'Inter', sans-serif;
+		}
+	</style>
+</head>
+<body>
+<div class="container">
+	<h1>CS184/284A Spring 2025 Homework 4 Write-Up</h1>
+	<div style="text-align: center;">Names: Carolyn Liu, Lance Mathias</div>
 
-		<br>
+	<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+	Link to webpage: <a href="https://cal-cs184-student.github.io/hw-webpages-pokerr/">cal-cs184-student.github.io/hw-webpages-pokerr/</a>
 
-		<br>
+	<br>
 
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+	Link to GitHub repository: <a href="https://github.com/cal-cs184-student/sp25-hw4-carrots">github.com/cal-cs184-student/sp25-hw4-carrots</a>
 
-		<figure>
-			<img src="clothsim.png" alt="Cloth draped over sphere" style="width:70%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
+	<!--
+    We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
+    -->
 
-		<!--
-		We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
-		-->
+	<h2>Overview</h2>
 
-		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+	<p>
+		For this homework, we implement a cloth simulation with different shaders to see how a cloth interacts with objects and how the color / shading changes.
+		To do this, we first create a basic wireframe that contains all the point masses and springs with structural, shearing, or bending constraints.
+		Then, we can use this wireframe to simulate movement by calculating the external forces and spring correction forces on each point mass.
+		We use Verlet integration to find the new position for each point mass based on the acceleration.
+		Next, we allow our cloth to handle collisions by checking if the point mass is within an object and adjusting its position based on the collision.
+		Another factor we consider is handling self-collisions to prevent the cloth from falling into itself.
+		To optimize this, we create a hash table, where a hash key represents all the point masses in a 3D box, so we do not need to check every point mass.
+		The last few things we implement are different shader scenes.
+		It was cool to see how different materials can be calculated and how textures change from different kinds of mapping.
+		Especially between bump mapping and displacement mapping, it was interesting to see how displacement mapping is actually able to include the creasing effects from the real image onto the object.
+	</p>
 
-		<h2>Part 1: Masses and springs</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<h2>Part 1: Masses and springs</h2>
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
-			<table style="width: 100%; text-align: center; border-collapse: collapse;">
-			  <tr>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
 				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="task1_wireframe.png" width="400px"/>
+					<figcaption>cloth wireframe</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="task1_no-shearing.png" width="400px"/>
+					<figcaption>no shearing constraints</figcaption>
 				</td>
-			  </tr>
-			  <tr>
+			</tr>
+			<tr>
 				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="task1_shearing-only.png" width="400px"/>
+					<figcaption>only shearing constraints</figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+					<img src="task1_all-constraints.png" width="400px"/>
+					<figcaption>all constraints</figcaption>
 				</td>
-			  </tr>
-			</table>
-		</div>
+			</tr>
+		</table>
+	</div>
 
-		<h2>Part 2: Simulation via numerical integration</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<h2>Part 2: Simulation via numerical integration</h2>
+	<p> <b>Changing the spring constant:</b> As the spring constant decreases, the cloth sags more and the number of creases in the cloth increase.
+		As the spring constant increases, the cloth becomes more stiff and the number of creases in the cloth decrease.</p>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task2_low-ks.png" width="300px"/>
+					<figcaption>100 ks</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_med-ks.png" width="300px"/>
+					<figcaption>5000 ks</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_high-ks.png" width="300px"/>
+					<figcaption>100000 ks</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
 
-		<h2>Part 3: Handling collisions with other objects</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<p> <b>Changing the density:</b> As the density decreases, the top of the cloth ripples less and the crease on the top is straighter.
+		As the density increases, the top of the cloth ripples more and the crease on the top is deeper.</p>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task2_low-density.png" width="300px"/>
+					<figcaption>density: 5</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_med-density.png" width="300px"/>
+					<figcaption>density: 15</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_high-density.png" width="300px"/>
+					<figcaption>density: 50</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
 
-		<h2>Part 4: Handling self-collisions</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<p> <b>Changing the damping:</b> As the damping decreases, the cloth sways back and forth drastically and falls a lot faster.
+		As the damping increases, the cloth does not sway as much when falling down and falls much slower.</p>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task2_low-damping.png" width="300px"/>
+					<figcaption>damping: 0.01%</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_med-damping.png" width="300px"/>
+					<figcaption>damping: 0.2%</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task2_high-damping.png" width="300px"/>
+					<figcaption>damping: 0.5%</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
 
-		<h2>Part 5: Shaders</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	<figure>
+		<img src="task2_4-pinned.png" alt="4 pinned points cloth" style="width:70%"/>
+		<figcaption>cloth with 4 pinned points (default parameters)</figcaption>
+	</figure>
 
-		<h2>(Optional) Part 6: Extra Credit - Additional cloth simulation features!</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-		
-		<h2>Additional Notes (please remove)</h2>
+	<h2>Part 3: Handling collisions with other objects</h2>
+	<p> <b>Handling collisions with spheres:</b> We first find the vector from the origin of the sphere to the position of the point mass, which we call the "path" vector.
+		Then, we check if this point is in our sphere by comparing the magnitude of the path vector to the sphere's radius.
+		If the point is inside the sphere, we find the tangent point by finding the unit vector of the path, multiplying by the radius of the sphere, and adding the origin of the sphere.
+		Next, we compute the correction vector which is the vector from the position of the point mass to the tangent point.
+		Now, we can calculate the new position of the point mass by adding the previous position to (1 - friction) multiplied by the correction vector.
+		We then assign this new position as the point mass's position.
+	</p>
+	<p> We handle collisions for every point mass by iterating through all the point masses and calling collide on it for all collision objects.</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task3_low-ks.png" width="300px"/>
+					<figcaption>500 ks</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task3_med-ks.png" width="300px"/>
+					<figcaption>5000 ks</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task3_high-ks.png" width="300px"/>
+					<figcaption>50000 ks</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> As the spring constant decreases, the cloth sags more and is able to wrap around the top of the sphere more closely.
+		As the spring constant increases, the cloth becomes more stiff and does not wrap around the sphere as much.</p>
+
+	<p> <b>Handling collisions with planes:</b> We first check if the point mass crosses over the plane from the last position to the current position.
+		We do this by computing the dot product of the normal vector on the plane and the vector from a point on the plane to the point mass.
+		If the signs are not equal to each other, this means the point moved to the other side of the plane and we need to change its current position.
+		To do so, we find the path from the last_position to the current position.
+		Then, we find the distance to the tangent point by taking the dot product of the normal vector and the vector from a point on the plan to the point mass's last_position.
+		Next, we compute the correction vector which is the distance multiplied by the unit vector of the path plus the normal vector multiplied by some SURFACE_OFFSET.
+		Now, we can calculate the new position of the point mass by adding the previous position to (1 - friction) multiplied by the correction vector.
+		We then assign this new position as the point mass's position.
+	</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task3_plane.png" alt="cloth on plane" style="width:400px"/>
+					<figcaption>cloth on plane</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task3_plane-texture.png" alt="cloth on plane with texture" style="width:400px"/>
+					<figcaption>cloth on plane with texture shader</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<h2>Part 4: Handling self-collisions</h2>
+	<p><b>hash_position:</b> To compute the hash key, we first find w, h, and t by following the formulas in the spec.
+		Then, we use those values to compute the hash key and return it. If the orientation is HORIZONTAL, the hash key is: floor(pos.x / w) + floor(pos.z / h) * num_width_points + floor(pos.y / t) * num_width_points * num_height_points.
+		If the orientation is VERTICAL, the hash key is: floor(pos.x / w) + floor(pos.y / h) * num_width_points + floor(pos.z / t) * num_width_points * num_height_points.
+	</p>
+
+	<p><b>build_spatial_map:</b> In this function, we iterate through all the point masses and complete the following steps for each point mass:
+	<ul>
+		<li> We find the hash key using the hash_position function.</li>
+		<li> Then, we take the vector in the map indexed at the hash value.</li>
 		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
-			</li>
+			<li> If the vector is empty, we create a new empty vector.</li>
 		</ul>
-		</div>
-	</body>
+		<li> Finally, we add the point mass to the end of the vector.</li>
+	</ul>
+	</p>
+
+	<p><b>self_collide:</b> We first compute the hash key using the hash_position function.
+		Then, we create two variables that keep track of the collision count (initialized at 0) and the correction vector (initialized at 0).
+		Now, we can iterate through all the point masses that have the same hash key by accessing that index in the hash map and check if a collision exists by following these steps:
+	<ul>
+		<li> If the current point mass is the same as the point mass we are handling self-collision for, we continue to the next point mass.</li>
+		<li> If not, we find the path which is the vector from the candidate's position to the current point mass's position.</li>
+		<li> If the distance is less than or equal to 2 * thickness, we add path * (2 * thickness - distance) / distance to the correction vector and add 1 to the collision count.</li>
+	</ul>
+	After iterating through all the candidates, we update the point mass's position to be the average of the correction vector using the collision count and divide by the simulation steps.
+	</p>
+
+	<p>Finally, to handle self-collisions in our simulation, we build the hash table and call self_collide on all the point masses.</p>
+
+	<p> Cloth falling with self-collisions (density 15 and 5000 ks):</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task4_phase1.png" width="300px"/>
+					<figcaption>beginning</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase2.png" width="300px"/>
+					<figcaption>middle</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase3.png" width="300px"/>
+					<figcaption>end</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> Changing the density: </p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task4_phase1-low-density.png" width="300px"/>
+					<figcaption>beginning (density: 5)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase2-low-density.png" width="300px"/>
+					<figcaption>middle (density: 5)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase3-low-density.png" width="300px"/>
+					<figcaption>end (density: 5)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task4_phase1-high-density.png" width="300px"/>
+					<figcaption>beginning (density: 50)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase2-high-density.png" width="300px"/>
+					<figcaption>middle (density: 50)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase3-high-density.png" width="300px"/>
+					<figcaption>end (density: 50)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> As the density decreases, the amount of wrinkles in the cloth decrease and are more spread out throughout the cloth.
+		As the density increases, the amount of wrinkles in the cloth increase and the cloth falls on top of itself more.</p>
+
+	<p> Changing the spring constant:</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task4_phase1-low-ks.png" width="300px"/>
+					<figcaption>beginning (100 ks)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase2-low-ks.png" width="300px"/>
+					<figcaption>middle (100 ks)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase3-low-ks.png" width="300px"/>
+					<figcaption>end (100 ks)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task4_phase1-high-ks.png" width="300px"/>
+					<figcaption>beginning (100000 ks)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase2-high-ks.png" width="300px"/>
+					<figcaption>middle (100000 ks)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task4_phase3-high-ks.png" width="300px"/>
+					<figcaption>end (100000 ks)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> As the spring constant decreases, the cloth wrinkles a lot more when it makes contact with the surface but stays smooth above it.
+		It also falls on top of itself a lot more, making a lot of creases. As the spring constant increases, the cloth creates a fewer wrinkles but they occur more throughout the entire cloth and falls with less folds.</p>
+
+	<h2>Part 5: Shaders</h2>
+
+	<p>
+		A shader program links the vertex shader file and the fragment shader file to produce the final rendered image.
+		The vertex file performs transformations on the vertex position to map it into screen space.
+		Then, these transformed coordinates and vectors are passed into the fragment shader.
+		The fragment shader uses the geometric properties to find the appropriate color, texture, and lighting effect for each pixel / coordinate.
+		It is able to include different lighting and material techniques to simulate how light interacts with the objects.
+		Finally, these colors are rendered onto the positions from the vertex file.
+	</p>
+
+	<p>
+		The Blinn-Phong Shading Model combines ambient, diffuse, and specular shading to produce a more shiny / glossy look to the object.
+		The ambient shading only consists of a dark solid color to account for disregarded illumination and fill in any dark shadows.
+		The diffuse shading provides shading when the light is scattered uniformly in all directions.
+		The specular shading adds the shiny, reflective highlights seen on glossy surfaces.
+	</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_ambient-only.png" width="300px"/>
+					<figcaption>ambient only</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_diffuse-only.png" width="300px"/>
+					<figcaption>diffuse only</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_specular-only.png" width="300px"/>
+					<figcaption>specular only</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<figure>
+		<img src="task5_blinn-phong.png" alt="blinn phong cloth" style="width:70%"/>
+		<figcaption>Blinn-Phong shading model</figcaption>
+	</figure>
+
+	<p> <b>Custom texture: </b></p>
+
+	<figure>
+		<img src="task5_texture.png" alt="texture cloth" style="width:70%"/>
+	</figure>
+
+	<p> <b>Bump mapping: </b></p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_bump-sphere.png" width="400px"/>
+					<figcaption>sphere</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_bump-cloth.png" width="400px"/>
+					<figcaption>cloth</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> <b>Displacement mapping: </b></p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_displacement-sphere.png" width="400px"/>
+					<figcaption>sphere</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_displacement-cloth.png" width="400px"/>
+					<figcaption>cloth</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> <b>Comparing the two approaches: </b>
+		In bump mapping, the shape of the sphere and the cloth stay the same. However, the rendered image on the two objects have a brick pattern now.
+		This is because the vertices of the objects do not change but only the rendered image.
+		For displacement mapping, the shape of the sphere and cloth has changed as it physically reflects the brick pattern more with crevices between the bricks.
+		This is because displacement mapping moves the vertices of the objects along with the texture.
+	</p>
+
+	<p> Coarseness: 16</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_bump-sphere-16.png" width="400px"/>
+					<figcaption>sphere (bump)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_displacement-sphere-16.png" width="400px"/>
+					<figcaption>sphere (displacement)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> Coarseness: 128</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_bump-sphere-128.png" width="400px"/>
+					<figcaption>sphere (bump)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_displacement-sphere-128.png" width="400px"/>
+					<figcaption>sphere (displacement)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> <b>Comparing the coarseness: </b>
+		For bump mapping, there is no change to the sphere as the coarseness changes. This is because the vertices stay the same and there is no 3D texture on the sphere.
+		For displacement mapping, as the coarseness increases, the sphere matches the overall shape better but there a lot of small bumps along the edges.
+		When the coarseness is low, the number of bumps are a lot less but the bumps are more broad / prominent.
+	</p>
+
+	<p> <b>Mirror:</b></p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_mirror-sphere.png" width="400px"/>
+					<figcaption>sphere</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_mirror-cloth.png" width="400px"/>
+					<figcaption>cloth</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p><b>Extra Credit: Custom shader</b></p>
+	<p> We combined all of the above shading methods into a single custom shader, in order to model a material that has an underlying color pattern, is reflective (and can also reflect the appearance of the surrounding environment), and has a bumpy shape.
+		To accomplish this, we started with the Blinn-Phong shading model and displacement mapping from the previous part, and set the underlying material color to be a linear combination of the sampled texture and mirror shading result.
+		To control the final appearance of the material, we used the existing parameters from the Blinn-Phong shading model, and also used the "shininess" parameter p to interpolate between the texture and mirror shaders to set the underlying color before diffuse and specular shading were applied.
+	</p>
+
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_custom-sphere-low.png" width="400px"/>
+					<figcaption>sphere (low shininess)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_custom-cloth-low.png" width="400px"/>
+					<figcaption>cloth (low shininess)</figcaption>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+					<img src="task5_custom-sphere-high.png" width="400px"/>
+					<figcaption>sphere (high shininess)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task5_custom-cloth-high.png" width="400px"/>
+					<figcaption>cloth (high shininess)</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p> <b>Comparing parameters: </b>
+		As we can see, with a low shininess, the underlying texture is mostly visible.
+	</p>
+
+	<h2>(Optional) Part 6: Extra Credit - Additional cloth simulation features!</h2>
+
+	<p> For extra credit, we added a wind feature to our cloth simulation. </p>
+	<p>
+		To begin implementing this, we included an extra 3D vector to represent the wind in our ClothParameters constructor.
+		Then, in the simulate function, we added the wind force to each point mass's force.
+		We do this by iterating through all the point masses and computing individual wind forces.
+		To mimic realistic wind physics where the wind force is higher in areas of the cloth that are perpendicular to the wind direction and lower in areas that are parallel to the wind direction,
+		the wind force is calculated by taking the dot product of the (un-normalized) wind vector and the normal vector of the point mass, multiplying it with the area that the point mass covers, and finally multiplying it with the wind vector
+		(we do not normalize the wind velocity vector at all in this equation, since in standard physics models, the magnitude of the wind force is porportional to wind velocity squared).
+
+	</p>
+	<p>
+		Finally, we include an extra panel in the cloth simulator to adjust the wind speed!
+	</p>
+	<div style="display: flex; flex-direction: column; align-items: center;">
+		<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			<tr>
+				<td style="text-align: center;">
+					<img src="task6_some-wind.png" width="300px"/>
+					<figcaption>some wind</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task6_some-more-wind.png" width="300px"/>
+					<figcaption>some more wind</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="task6_a-ton-of-wind.png" width="300px"/>
+					<figcaption>a ton of wind</figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<p>Since this force is spatially varying and depends on the relative angle of the cloth with the wind, we can get an interesting fluttering effect with sufficiently high wind speed:</p>
+
+	<figure>
+		<img src="task6_anim.gif" alt="wind gif" style="width:100%"/>
+		<figcaption>wind simulation animation</figcaption>
+	</figure>
+</div>
+</body>
 </html>
